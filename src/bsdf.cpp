@@ -44,12 +44,14 @@ Vec3f IdealDiffusion::evaluate(SurfaceInteraction &interaction) const {
 Float IdealDiffusion::pdf(SurfaceInteraction &interaction) const {
   // This is left as the next assignment
   UNIMPLEMENTED;
+  return 0.0f;
 }
 
 Vec3f IdealDiffusion::sample(
     SurfaceInteraction &interaction, Sampler &sampler, Float *out_pdf) const {
   // This is left as the next assignment
   UNIMPLEMENTED;
+  return Vec3f(0.0f); // 这一行必须存在！
 }
 
 /// return whether the bsdf is perfect transparent or perfect reflection
@@ -73,7 +75,7 @@ Vec3f PerfectRefraction::evaluate(SurfaceInteraction &) const {
 }
 
 Float PerfectRefraction::pdf(SurfaceInteraction &) const {
-  return 0;
+  return 0.0f;
 }
 
 Vec3f PerfectRefraction::sample(
@@ -104,7 +106,13 @@ Vec3f PerfectRefraction::sample(
   // @see Refract for refraction calculation.
   // @see Reflect for reflection calculation.
 
-  UNIMPLEMENTED;
+  Float eta_ratio = 1.0f / eta_corrected;
+  Vec3f n_eff = entering ? normal : -normal; 
+
+  if (!Refract(-interaction.wo, n_eff, eta_ratio, interaction.wi)) {
+    if (pdf) *pdf = 0.0f;
+    return Vec3f(0.0f);
+  }
 
   // Set the pdf and return value, we dont need to understand the value now
   if (pdf != nullptr) *pdf = 1.0F;
@@ -141,6 +149,7 @@ Vec3f Glass::sample(
     SurfaceInteraction &interaction, Sampler &sampler, Float *pdf) const {
   // This is left as the next assignment
   UNIMPLEMENTED;
+  return Vec3f(0.0f);
 }
 
 bool Glass::isDelta() const {
@@ -177,17 +186,20 @@ MicrofacetReflection::MicrofacetReflection(const Properties &props)
 Vec3f MicrofacetReflection::evaluate(SurfaceInteraction &interaction) const {
   // This is left as the next assignment
   UNIMPLEMENTED;
+  return Vec3f(0.0f);
 }
 
 Float MicrofacetReflection::pdf(SurfaceInteraction &interaction) const {
   // This is left as the next assignment
   UNIMPLEMENTED;
+  return 0.0f;
 }
 
 Vec3f MicrofacetReflection::sample(
     SurfaceInteraction &interaction, Sampler &sampler, Float *pdf_in) const {
   // This is left as the next assignment
   UNIMPLEMENTED;
+  return Vec3f(0.0f);
 }
 
 /// return whether the bsdf is perfect transparent or perfect reflection

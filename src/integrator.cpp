@@ -63,6 +63,13 @@ void IntersectionTestIntegrator::render(ref<Camera> camera, ref<Scene> scene) {
         // assert(pixel_sample.y >= dy && pixel_sample.y <= dy + 1);
         // const Vec3f &L = Li(scene, ray, sampler);
         // camera->getFilm()->commitSample(pixel_sample, L);
+
+        const Vec2f &pixel_sample = sampler.getPixelSample();
+
+        auto ray = camera->generateDifferentialRay(pixel_sample.x, pixel_sample.y);
+
+        const Vec3f &L = Li(scene, ray, sampler);
+        camera->getFilm()->commitSample(pixel_sample, L);
       }
     }
   }
@@ -91,6 +98,9 @@ Vec3f IntersectionTestIntegrator::Li(
     interaction.wo = -ray.direction;
 
     if (!intersected) {
+      if (scene->hasInfiniteLight()) {
+        return scene->getInfiniteLight()->Le(interaction, ray.direction);
+      }
       break;
     }
 
@@ -104,7 +114,12 @@ Vec3f IntersectionTestIntegrator::Li(
       // @see SurfaceInteraction::spawnRay
       //
       // You should update ray = ... with the spawned ray
-      UNIMPLEMENTED;
+      Float pdf;
+      Vec3f throughput = interaction.bsdf->sample(interaction, sampler, &pdf);
+      
+      if (throughput == Vec3f(0.0f)) break;
+
+      ray = interaction.spawnRay(interaction.wi);
       continue;
     }
 
@@ -122,16 +137,12 @@ Vec3f IntersectionTestIntegrator::Li(
     return color;
   }
 
-  color = directLighting(scene, interaction);
+  color = directLighting(scene, interaction, sampler);
   return color;
 }
 
 Vec3f IntersectionTestIntegrator::directLighting(
-    ref<Scene> scene, SurfaceInteraction &interaction) const {
-  Vec3f color(0, 0, 0);
-  Float dist_to_light = Norm(point_light_position - interaction.p);
-  Vec3f light_dir     = Normalize(point_light_position - interaction.p);
-  auto test_ray       = DifferentialRay(interaction.p, light_dir);
+    ref<Scene> scene, SurfaceInteraction &interaction, Sampler &sampler) const {
 
   // TODO(HW3): Test for occlusion
   //
@@ -148,32 +159,43 @@ Vec3f IntersectionTestIntegrator::directLighting(
   //
   //    You can use iteraction.p to get the intersection position.
   //
-  UNIMPLEMENTED;
+  Vec3f L_total(0.0f);
 
-  // Not occluded, compute the contribution using perfect diffuse diffuse model
-  // Perform a quick and dirty check to determine whether the BSDF is ideal
-  // diffuse by RTTI
-  const BSDF *bsdf      = interaction.bsdf;
-  bool is_ideal_diffuse = dynamic_cast<const IdealDiffusion *>(bsdf) != nullptr;
+  for (const auto &light : scene->getLights()) {
+    
+    //Sample
+    SurfaceInteraction light_isect = light->sample(interaction, sampler);
 
-  if (bsdf != nullptr && is_ideal_diffuse) {
-    // TODO(HW3): Compute the contribution
-    //
-    // You can use bsdf->evaluate(interaction) * cos_theta to approximate the
-    // albedo. In this homework, we do not need to consider a
-    // radiometry-accurate model, so a simple phong-shading-like model is can be
-    // used to determine the value of color.
+    //Calculate geometry
+    Vec3f light_vec = light_isect.p - interaction.p;
+    Float dist_sq   = Dot(light_vec, light_vec);
+    Float dist      = std::sqrt(dist_sq);
+    Vec3f light_dir = light_vec / dist;
 
-    // The angle between light direction and surface normal
-    Float cos_theta =
-        std::max(Dot(light_dir, interaction.normal), 0.0f);  // one-sided
+    //Shadow Ray
+    DifferentialRay shadow_ray(interaction.p, light_dir, dist - 1e-4f,1e-4f);
+    SurfaceInteraction occlusion;
+    
+    if (scene->intersect(shadow_ray, occlusion)) {
+      continue;
+    }
 
-    // You should assign the value to color
-    // color = ...
-    UNIMPLEMENTED;
+    //Compute contribution
+    
+    Vec3f Le = light->Le(light_isect, -light_dir);
+    Vec3f brdf = interaction.bsdf->evaluate(interaction);
+
+    Float cos_surf = std::max(Dot(interaction.shading.n, light_dir), 0.0f);
+    Float cos_light = std::max(Dot(light_isect.shading.n, -light_dir), 0.0f);
+    Float pdf = light_isect.pdf;
+
+    if (pdf > 1e-8f && dist_sq > 1e-8f) {
+      L_total += (Le * brdf * cos_surf * cos_light) / (dist_sq * pdf);
+    }
   }
 
-  return color;
+  return L_total;
+
 }
 
 /* ===================================================================== *
@@ -191,12 +213,14 @@ Vec3f PathIntegrator::Li(
     ref<Scene> scene, DifferentialRay &ray, Sampler &sampler) const {
   // This is left as the next assignment
   UNIMPLEMENTED;
+  return Vec3f(0.0f);
 }
 
 Vec3f PathIntegrator::directLighting(
     ref<Scene> scene, SurfaceInteraction &interaction, Sampler &sampler) const {
   // This is left as the next assignment
   UNIMPLEMENTED;
+  return Vec3f(0.0f);
 }
 
 /* ===================================================================== *
@@ -219,6 +243,7 @@ Vec3f IncrementalPathIntegrator::Li(  // NOLINT
     ref<Scene> scene, DifferentialRay &ray, Sampler &sampler) const {
   // This is left as the next assignment
   UNIMPLEMENTED;
+  return Vec3f(0.0f);
 }
 
 RDR_NAMESPACE_END

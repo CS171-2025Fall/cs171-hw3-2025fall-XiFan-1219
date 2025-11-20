@@ -1,6 +1,6 @@
 {
   "integrator": {
-    "type": "bdpt",
+    "type": "intersection_test",
     "profile": "MIS",
     "spp": 128,
     "rr_threshold": 0.1,

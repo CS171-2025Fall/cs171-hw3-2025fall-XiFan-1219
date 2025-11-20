@@ -5,6 +5,7 @@
 #include "rdr/math_aliases.h"
 #include "rdr/platform.h"
 #include "rdr/shape.h"
+#include <algorithm>
 
 RDR_NAMESPACE_BEGIN
 
@@ -43,7 +44,25 @@ bool AABB::intersect(const Ray &ray, Float *t_in, Float *t_out) const {
   //    for getting the inverse direction of the ray.
   // @see Min/Max/ReduceMin/ReduceMax
   //    for vector min/max operations.
-  UNIMPLEMENTED;
+  Float t_enter = ray.t_min;
+  Float t_exit = ray.t_max;
+  
+  Vec3f inv_dir(1.0f / ray.direction.x, 1.0f / ray.direction.y, 1.0f / ray.direction.z);
+
+  for (int i = 0; i < 3; ++i) {
+    Float t1 = (low_bnd[i] - ray.origin[i]) * inv_dir[i];
+    Float t2 = (upper_bnd[i] - ray.origin[i]) * inv_dir[i];
+
+    if (inv_dir[i] < 0) std::swap(t1, t2);
+
+    t_enter = std::max(t_enter, t1);
+    t_exit  = std::min(t_exit, t2);
+  }
+
+  if (t_in) *t_in = t_enter;
+  if (t_out) *t_out = t_exit;
+
+  return t_enter <= t_exit && t_exit >= 0;
 }
 
 /* ===================================================================== *
@@ -70,7 +89,6 @@ bool TriangleIntersect(Ray &ray, const uint32_t &triangle_index,
   InternalVecType v0  = Cast<InternalScalarType>(vertices[v_idx[0]]);
   InternalVecType v1  = Cast<InternalScalarType>(vertices[v_idx[1]]);
   InternalVecType v2  = Cast<InternalScalarType>(vertices[v_idx[2]]);
-
   // TODO(HW3): implement ray-triangle intersection test.
   // You should compute the u, v, t as InternalScalarType
   //
@@ -92,10 +110,32 @@ bool TriangleIntersect(Ray &ray, const uint32_t &triangle_index,
   // You can use @see Cross and @see Dot for determinant calculations.
 
   // Delete the following lines after you implement the function
-  InternalScalarType u = InternalScalarType(0);
-  InternalScalarType v = InternalScalarType(0);
-  InternalScalarType t = InternalScalarType(0);
-  UNIMPLEMENTED;
+  InternalVecType e1 = v1 - v0;
+  InternalVecType e2 = v2 - v0;
+  
+  InternalVecType s(
+      static_cast<InternalScalarType>(ray.origin.x) - v0.x,
+      static_cast<InternalScalarType>(ray.origin.y) - v0.y,
+      static_cast<InternalScalarType>(ray.origin.z) - v0.z
+  );
+
+  InternalVecType s1 = Cross(dir, e2);
+  InternalScalarType div = Dot(s1, e1);
+
+  if (std::abs(div) < 1e-8) return false;
+
+  InternalScalarType invDiv = 1.0 / div;
+
+  InternalScalarType u = Dot(s, s1) * invDiv;
+  if (u < 0 || u > 1) return false;
+
+  InternalVecType s2 = Cross(s, e1);
+  InternalScalarType v = Dot(dir, s2) * invDiv;
+  if (v < 0 || u + v > 1) return false;
+
+  InternalScalarType t = Dot(e2, s2) * invDiv;
+
+  if (!ray.withinTimeRange(t)) return false;
 
   // We will reach here if there is an intersection
 

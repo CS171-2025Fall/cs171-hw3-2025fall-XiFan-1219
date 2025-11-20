@@ -328,11 +328,16 @@ RDR_FORCEINLINE Vec3f UniformSampleHemisphere(const Vec2f &u) {
 RDR_FORCEINLINE Vec3f CosineSampleHemisphere(const Vec2f &u) {
   // This is left as the next assignment
   UNIMPLEMENTED;
+  return Vec3f(0.0f);
 }
 
 RDR_FORCEINLINE Vec3f UniformSampleSphere(const Vec2f &u) {
   // This is left as the next assignment
-  UNIMPLEMENTED;
+  Float z = 1.0f - 2.0f * u.x;
+  Float r = std::sqrt(std::max(0.0f, 1.0f - z * z));
+  Float phi = 2.0f * PI * u.y;
+  
+  return Vec3f(r * std::cos(phi), r * std::sin(phi), z);
 }
 
 RDR_FORCEINLINE Vec3f UniformSampleTriangle(const Vec2f &u) {

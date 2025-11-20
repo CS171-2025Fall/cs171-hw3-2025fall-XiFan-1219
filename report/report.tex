@@ -25,8 +25,8 @@
 % Title portion
 \title{Assignment 1:\\ {Exploring OpenGL Programming}} 
 
-\author{Name: \quad \\ student number:\
-\\email: \quad \texttt{}}
+\author{Name: Kang Ruoxi \\ student number:2023533179\
+\\email: \quad \texttt{kangrx2023@shanghaitech.edu.cn}}
 
 % Document starts
 \begin{document}
@@ -35,8 +35,136 @@
 \vspace*{2 ex}
 
 \section{Introduction}
+In this assignment, I implemented a basic ray tracing renderer. The system supports core functionalities such as ray-geometry intersection, BVH acceleration, and direct illumination integration. Additionally, I implemented several advanced features including multiple light sources, area lights (soft shadows), and environment lighting.
+
+The following sections detail the implementation corresponding to each requirement.
+
 \section{Implementation Details}
+
+\subsection{Requirement 1: Compile \& Configure [Must]}
+I successfully compiled the source code and configured the environment using CMake.
+\begin{itemize}
+    \item \textbf{Dependency Management}: I resolved network issues by manually managing third-party libraries (e.g., \texttt{fmt}, \texttt{googletest}) in a \texttt{manual\_deps} directory.
+    \item \textbf{MSVC Compatibility}: I fixed several compiler-specific errors in \texttt{accel.cpp} by replacing template \texttt{Cast} functions with explicit vector construction to avoid template deduction failures.
+\end{itemize}
+
+\subsection{Requirement 2: Ray-Triangle Intersection [Must]}
+In \texttt{src/accel.cpp}, I implemented the \textbf{Möller-Trumbore algorithm} in the \texttt{TriangleIntersect} function.
+\begin{itemize}
+    \item The function solves for barycentric coordinates $(u, v)$ and distance $t$.
+    \item I added validity checks to ensure $u \ge 0, v \ge 0, u+v \le 1$, and that $t$ falls within the valid ray interval.
+\end{itemize}
+
+\subsection{Requirement 3: Ray-AABB Intersection [Must]}
+In \texttt{src/accel.cpp}, I implemented the \textbf{Slab Method} in \texttt{AABB::intersect}.
+\begin{itemize}
+    \item For each axis (x, y, z), I calculated the entry ($t_{min}$) and exit ($t_{max}$) intervals.
+    \item The ray intersects the AABB if the intersection of intervals on all axes is valid ($t_{enter} \le t_{exit}$) and overlaps with the ray's time range.
+\end{itemize}
+
+\subsection{Requirement 4: BVH Construction [Must]}
+In \texttt{include/rdr/bvh\_tree.h}, I implemented the BVH construction logic.
+\begin{itemize}
+    \item \textbf{Heuristic}: I utilized the \textbf{Median Split} method.
+    \item \textbf{Implementation}: I used \texttt{std::nth\_element} to sort primitives based on their centroids along the longest axis of the bounding box, splitting them into left and right child nodes recursively.
+\end{itemize}
+
+\subsection{Requirement 5: Integrator \& Refraction [Must]}
+\paragraph{Integrator} In \texttt{src/integrator.cpp}, I implemented \texttt{IntersectionTestIntegrator::Li}. It recursively traces rays. If a ray hits a refractive surface, it spawns a new ray and continues tracing; if it hits a diffuse surface, it computes direct lighting.
+\paragraph{Refraction} In \texttt{src/bsdf.cpp}, I implemented \texttt{PerfectRefraction::sample} based on \textbf{Snell's Law}. I handled the incident direction (negating \texttt{wo}) and Total Internal Reflection (TIR) using the \texttt{Refract} function.
+
+\subsection{Requirement 6: Direct Lighting [Must]}
+In \texttt{src/integrator.cpp}, I implemented the \texttt{directLighting} function.
+\begin{itemize}
+    \item It calculates the contribution from light sources using the Lambertian model ($Albedo \times \cos\theta$).
+    \item It casts a \textbf{Shadow Ray} to test for occlusion. I explicitly set \texttt{shadow\_ray.t\_min = 1e-4f} to prevent self-intersection (Shadow Acne).
+\end{itemize}
+
+\subsection{Requirement 7: Anti-aliasing [Must]}
+In \texttt{IntersectionTestIntegrator::render}, I implemented anti-aliasing via multi-ray sampling.
+\begin{itemize}
+    \item The renderer loops \texttt{spp} times for each pixel.
+    \item I used \texttt{sampler.getPixelSample()} to generate sub-pixel coordinates with random offsets, averaging the results to produce smooth edges.
+\end{itemize}
+
+\subsection{Requirement 8: Multiple Light Sources [Optional]}
+In \texttt{directLighting}, I replaced the hardcoded single light logic with a loop that iterates over all lights in the scene:
+\begin{lstlisting}
+Vec3f L_total(0.0f);
+for (const auto &light : scene->getLights()) {
+    // Sample and accumulate contribution from each light
+    // ...
+    L_total += contribution;
+}
+return L_total;
+\end{lstlisting}
+
+\subsection{Requirement 9: Area Lights \& Soft Shadows [Optional]}
+I implemented area light support by utilizing the \texttt{light->sample()} interface in \texttt{directLighting}.
+\begin{itemize}
+    \item Instead of using a fixed light position, I sample a random point on the light source surface.
+    \item When combined with multiple samples per pixel (SPP), this naturally produces \textbf{Soft Shadows} (penumbra) for area lights, as demonstrated in the results.
+\end{itemize}
+
+\subsection{Requirement 10: Environment Lighting [Optional]}
+In \texttt{src/integrator.cpp}, I modified the \texttt{Li} function to handle rays that miss scene geometry:
+\begin{lstlisting}
+if (!intersected) {
+    if (scene->hasInfiniteLight()) {
+        // Sample environment map for background color
+        return scene->getInfiniteLight()->Le(interaction, ray.direction);
+    }
+    break;
+}
+\end{lstlisting}
+This allows the renderer to use environment maps for background illumination.
+
 \section{Results}
 
-\end{document}
+\subsection{Basic Feature Verification}
+Figure \ref{fig:refract} shows the result of the \texttt{cbox\_no\_light\_refract.json} scene.
+\begin{itemize}
+    \item \textbf{Refraction}: The glass sphere correctly refracts the background.
+    \item \textbf{Hard Shadow}: The point light source creates sharp shadows.
+\end{itemize}
 
+\begin{figure}[h]
+    \centering
+    \IfFileExists{result_refract.png}{
+        \includegraphics[width=0.9\linewidth]{result_refract.png}
+    }{
+        \framebox{\parbox[c][3cm]{0.9\linewidth}{\centering Image result\_refract.png not found.}}
+    }
+    \caption{Cornell Box with Glass Sphere. Verifies Refraction and Basic Tracing.}
+    \label{fig:refract}
+\end{figure}
+
+\subsection{Advanced Feature Verification}
+Figure \ref{fig:soft} shows the result of the \texttt{cbox.json} scene.
+\begin{itemize}
+    \item \textbf{Soft Shadows}: The shadows cast by the boxes have soft gradients, confirming that the Area Light sampling and Multiple Light support are working correctly.
+    \item \textbf{Noise-free}: The image is clean, validating the fix for shadow acne ($t_{min}$ offset).
+\end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \IfFileExists{result_soft_shadow.png}{
+        \includegraphics[width=0.9\linewidth]{result_soft_shadow.png}
+    }{
+        \framebox{\parbox[c][3cm]{0.9\linewidth}{\centering Image result\_soft\_shadow.png not found.}}
+    }
+    \caption{Cornell Box with Soft Shadows. Verifies Area Lights and Multiple Light Sources.}
+    \label{fig:soft}
+\end{figure}
+
+\section{Conclusion}
+I have successfully implemented a functional ray tracer. All mandatory requirements were met, and I additionally implemented support for multiple light sources, area lights (soft shadows), and environment lighting logic.
+
+\end{document}
+    \label{fig:soft}
+\end{figure}
+
+\section{Conclusion}
+I have successfully implemented a functional ray tracer with BVH acceleration, refractive materials, and direct illumination. Additionally, I enhanced the integrator to support multiple area lights, enabling high-quality soft shadow rendering.
+
+\end{document}
