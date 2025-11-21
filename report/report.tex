@@ -93,7 +93,6 @@ In \texttt{directLighting}, I replaced the hardcoded single light logic with a l
 Vec3f L_total(0.0f);
 for (const auto &light : scene->getLights()) {
     // Sample and accumulate contribution from each light
-    // ...
     L_total += contribution;
 }
 return L_total;
@@ -159,12 +158,5 @@ Figure \ref{fig:soft} shows the result of the \texttt{cbox.json} scene.
 
 \section{Conclusion}
 I have successfully implemented a functional ray tracer. All mandatory requirements were met, and I additionally implemented support for multiple light sources, area lights (soft shadows), and environment lighting logic.
-
-\end{document}
-    \label{fig:soft}
-\end{figure}
-
-\section{Conclusion}
-I have successfully implemented a functional ray tracer with BVH acceleration, refractive materials, and direct illumination. Additionally, I enhanced the integrator to support multiple area lights, enabling high-quality soft shadow rendering.
 
 \end{document}
