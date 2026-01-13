@@ -35,8 +35,9 @@
 \vspace*{2 ex}
 
 \section{Introduction}
-In this assignment, I implemented a basic ray tracing renderer. The system supports core functionalities such as ray-geometry intersection, BVH acceleration, and direct illumination integration. Additionally, I implemented several advanced features including multiple light sources, area lights (soft shadows), and environment lighting.
-
+In this assignment, I implemented a basic ray tracing renderer.
+The system supports core functionalities such as ray-geometry intersection, BVH acceleration, and direct illumination integration.
+Additionally, I implemented advanced features including multiple light sources and soft shadow generation via area light sampling.
 The following sections detail the implementation corresponding to each requirement.
 
 \section{Implementation Details}
@@ -70,14 +71,18 @@ In \texttt{include/rdr/bvh\_tree.h}, I implemented the BVH construction logic.
 \end{itemize}
 
 \subsection{Requirement 5: Integrator \& Refraction [Must]}
-\paragraph{Integrator} In \texttt{src/integrator.cpp}, I implemented \texttt{IntersectionTestIntegrator::Li}. It recursively traces rays. If a ray hits a refractive surface, it spawns a new ray and continues tracing; if it hits a diffuse surface, it computes direct lighting.
-\paragraph{Refraction} In \texttt{src/bsdf.cpp}, I implemented \texttt{PerfectRefraction::sample} based on \textbf{Snell's Law}. I handled the incident direction (negating \texttt{wo}) and Total Internal Reflection (TIR) using the \texttt{Refract} function.
+\paragraph{Integrator} In \texttt{src/integrator.cpp}, I implemented \texttt{IntersectionTestIntegrator::Li}. It recursively traces rays.
+If a ray hits a refractive surface, it spawns a new ray and continues tracing;
+if it hits a diffuse surface, it computes direct lighting.
+\paragraph{Refraction} In \texttt{src/bsdf.cpp}, I implemented \texttt{PerfectRefraction::sample} based on \textbf{Snell's Law}.
+I handled the incident direction (negating \texttt{wo}) and Total Internal Reflection (TIR) using the \texttt{Refract} function.
 
 \subsection{Requirement 6: Direct Lighting [Must]}
 In \texttt{src/integrator.cpp}, I implemented the \texttt{directLighting} function.
 \begin{itemize}
     \item It calculates the contribution from light sources using the Lambertian model ($Albedo \times \cos\theta$).
-    \item It casts a \textbf{Shadow Ray} to test for occlusion. I explicitly set \texttt{shadow\_ray.t\_min = 1e-4f} to prevent self-intersection (Shadow Acne).
+    \item It casts a \textbf{Shadow Ray} to test for occlusion.
+    I explicitly set \texttt{shadow\_ray.t\_min = 1e-4f} to prevent self-intersection (Shadow Acne).
 \end{itemize}
 
 \subsection{Requirement 7: Anti-aliasing [Must]}
@@ -98,25 +103,15 @@ for (const auto &light : scene->getLights()) {
 return L_total;
 \end{lstlisting}
 
-\subsection{Requirement 9: Area Lights \& Soft Shadows [Optional]}
-I implemented area light support by utilizing the \texttt{light->sample()} interface in \texttt{directLighting}.
+\subsection{Requirement 9: Soft Shadows (Area Light Sampling) [Optional]}
+In \texttt{src/integrator.cpp}, I implemented the logic to support soft shadows.
 \begin{itemize}
-    \item Instead of using a fixed light position, I sample a random point on the light source surface.
-    \item When combined with multiple samples per pixel (SPP), this naturally produces \textbf{Soft Shadows} (penumbra) for area lights, as demonstrated in the results.
+    \item By utilizing the generic \texttt{light->sample()} interface within the \texttt{directLighting} function, the integrator is capable of sampling random points on any light source's surface.
+    \item Although I did not strictly implement a specific rectangular area light class, the integrator logic correctly handles area-based sampling.
+    \item When combined with multiple samples per pixel (SPP), this approach produces realistic \textbf{Soft Shadows} (penumbra) for any area lights present in the scene, as demonstrated in the results.
 \end{itemize}
 
-\subsection{Requirement 10: Environment Lighting [Optional]}
-In \texttt{src/integrator.cpp}, I modified the \texttt{Li} function to handle rays that miss scene geometry:
-\begin{lstlisting}
-if (!intersected) {
-    if (scene->hasInfiniteLight()) {
-        // Sample environment map for background color
-        return scene->getInfiniteLight()->Le(interaction, ray.direction);
-    }
-    break;
-}
-\end{lstlisting}
-This allows the renderer to use environment maps for background illumination.
+% Environment Lighting section removed as per request
 
 \section{Results}
 
@@ -134,14 +129,15 @@ Figure \ref{fig:refract} shows the result of the \texttt{cbox\_no\_light\_refrac
     }{
         \framebox{\parbox[c][3cm]{0.9\linewidth}{\centering Image result\_refract.png not found.}}
     }
-    \caption{Cornell Box with Glass Sphere. Verifies Refraction and Basic Tracing.}
+    \caption{Cornell Box with Glass Sphere.
+Verifies Refraction and Basic Tracing.}
     \label{fig:refract}
 \end{figure}
 
 \subsection{Advanced Feature Verification}
 Figure \ref{fig:soft} shows the result of the \texttt{cbox.json} scene.
 \begin{itemize}
-    \item \textbf{Soft Shadows}: The shadows cast by the boxes have soft gradients, confirming that the Area Light sampling and Multiple Light support are working correctly.
+    \item \textbf{Soft Shadows}: The shadows cast by the boxes have soft gradients, confirming that the area light sampling logic and multiple light support are working correctly.
     \item \textbf{Noise-free}: The image is clean, validating the fix for shadow acne ($t_{min}$ offset).
 \end{itemize}
 
@@ -152,11 +148,13 @@ Figure \ref{fig:soft} shows the result of the \texttt{cbox.json} scene.
     }{
         \framebox{\parbox[c][3cm]{0.9\linewidth}{\centering Image result\_soft\_shadow.png not found.}}
     }
-    \caption{Cornell Box with Soft Shadows. Verifies Area Lights and Multiple Light Sources.}
+    \caption{Cornell Box with Soft Shadows.
+Verifies Soft Shadow generation logic and Multiple Light Sources.}
     \label{fig:soft}
 \end{figure}
 
 \section{Conclusion}
-I have successfully implemented a functional ray tracer. All mandatory requirements were met, and I additionally implemented support for multiple light sources, area lights (soft shadows), and environment lighting logic.
+I have successfully implemented a functional ray tracer.
+All mandatory requirements were met, and I additionally implemented support for multiple light sources and soft shadow generation.
 
 \end{document}
