@@ -46,7 +46,6 @@ The following sections detail the implementation corresponding to each requireme
 I successfully compiled the source code and configured the environment using CMake.
 \begin{itemize}
     \item \textbf{Dependency Management}: I resolved network issues by manually managing third-party libraries (e.g., \texttt{fmt}, \texttt{googletest}) in a \texttt{manual\_deps} directory.
-    \item \textbf{MSVC Compatibility}: I fixed several compiler-specific errors in \texttt{accel.cpp} by replacing template \texttt{Cast} functions with explicit vector construction to avoid template deduction failures.
 \end{itemize}
 
 \subsection{Requirement 2: Ray-Triangle Intersection [Must]}
